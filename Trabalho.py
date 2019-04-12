@@ -1,6 +1,12 @@
 import math
 import numpy as np
 
+#Função de Custo
+def CrossEntropy(out, value):
+    if value ==1:
+        return -np.log(out)
+    else:
+        return -np.log(1 - out)
 
 # Esquece essa porra
 def multiplicar(num, peso):
@@ -33,17 +39,31 @@ wout = np.random.randn(10, 16) * np.sqrt(2 / 16)
 #Declaro a hidden layer
 hl = np.zeros(16)
 
+#Declaro o output
 output = np.zeros(10)
+
+cost = np.zeros(10)
 
 bias = 0
 
+#Passo os valores pelos perceptrons
 for x in range (16):
     hl[x] = perc(input, whl[x], bias)
 
 for x in range (10):
     output[x] = perc(hl, wout[x], bias)
-print(output)
-print(max(output))
 
+#print("Output antes do Cross Entropy:\n", output)
 
+#Aplico a função de custo
+for x in range (10):
+    cost[x] = CrossEntropy(output[x], list[x+256])
+
+#print("Custo:\n", cost)
+
+gradient = np.gradient(wout)
+
+print(gradient[0][0])
+
+#Fecho o arquivo
 f.close()
