@@ -1,14 +1,11 @@
 import math
 import numpy as np
 
-#Função de Custo
-def CrossEntropy(out, value):
-    if value ==1:
-        return -np.log(out)
-    else:
-        return -np.log(1 - out)
+#Função de Custo MSE
+def MSE(output, lista):
+    return ((output - lista)**2)/2 
 
-# Esquece essa porra
+# Esquece
 def multiplicar(num, peso):
     for x in range(len(num)):
         num[x] *= peso[x]
@@ -17,24 +14,29 @@ def multiplicar(num, peso):
 
 # Declaração do modelo do perceptron
 def perc(num, peso, bias):
-    return 1/(1+(math.exp(-(sum(multiplicar(num, peso), bias)))))
-    
-
-# Abro o arquivo de imagem
-f = open("semeion.data", "r")
-
-list = f.readline().split(" ")
-
-input = np.zeros(256)
-
-#Converto os dados de lista para float
-for x in range (256):
-    input[x] = float(list[x])
+    return 1/(1+(math.exp(-(sum(multiplicar(num, peso), bias))))) 
 
 #Declaro os pesos iniciais, por meio da função de He-et-al
-whl = np.random.randn(16, 256) * np.sqrt(2 / 256)
+whl = np.random.randn(256, 16) * np.sqrt(2 / 256)
 
-wout = np.random.randn(10, 16) * np.sqrt(2 / 16)
+wout = np.random.randn(16, 10) * np.sqrt(2 / 16)
+
+awhl = np.random.randn(256, 16) * np.sqrt(2 / 256)
+
+awout = np.random.randn(16, 10) * np.sqrt(2 / 16)
+
+taxa = 0.2
+
+erro = np.zeros(1593)
+
+# Abro o arquivo de imagem
+data = open("semeion.data", "r")
+#weights = open("pesos", "w+")
+error = open("error", "w+")
+
+
+input = np.zeros(256)
+algarismo = np.zeros(10)
 
 #Declaro a hidden layer
 hl = np.zeros(16)
@@ -42,28 +44,62 @@ hl = np.zeros(16)
 #Declaro o output
 output = np.zeros(10)
 
-cost = np.zeros(10)
-
 bias = 0
 
-#Passo os valores pelos perceptrons
-for x in range (16):
-    hl[x] = perc(input, whl[x], bias)
+for z in range(1593):
 
-for x in range (10):
-    output[x] = perc(hl, wout[x], bias)
+    #np.savetxt(weights, wout)
+    #np.savetxt(weights, whl)
 
-#print("Output antes do Cross Entropy:\n", output)
+    list = data.readline().split(" ")
 
-#Aplico a função de custo
-for x in range (10):
-    cost[x] = CrossEntropy(output[x], list[x+256])
+    #Converto os dados de lista para float
+    for x in range (256):
+        input[x] = float(list[x])
+    for x in range (10):
+        algarismo[x] = int(list[256+x])
 
-#print("Custo:\n", cost)
+    cost = 0
+    costfunction = 0
 
-gradient = np.gradient(wout)
+    transpostahl = np.matrix.transpose(whl)
+    transpostaout = np.matrix.transpose(wout)
 
-print(gradient[0][0])
+    #Passo os valores pelos perceptrons
+    for x in range (16):
+        hl[x] = perc(input, transpostahl[x], bias)
+
+    for x in range (10):
+        output[x] = perc(hl, transpostaout[x], bias)
+
+    #Aplico a função de custo
+    for x in range (10):
+        costfunction += MSE(output[x], int(algarismo[x]))
+
+    erro[z]= costfunction
+
+    #error.write(str(costfunction))
+    #error.write(" ")
+
+    for x in range (10):
+        cost += output[x] - int(algarismo[x])
+
+    for x in range(16):
+        for y in range(10): 
+            awout[x][y] = wout[x][y] - taxa * (cost * (1/(1+np.exp(-(hl[x]* wout[x][y])))) * (1 - 1/(1+np.exp(-(hl[x]* wout[x][y])))) * hl[x])
+
+    for x in range(256):
+        for y in range(16):
+            awhl[x][y] = whl[x][y] - taxa * (cost * (1/(1+np.exp(-(hl[y]* sum(wout[y]))))) * (1 - 1/(1+np.exp(-(hl[y]* sum(wout[y]))))) * sum(wout[y]) * (1 - 1/(1+np.exp(-(input[x]* whl[x][y])))) * input[x])
+
+    wout = awout
+    whl = awhl
+
+error.write(str(sum(erro)/1593))
 
 #Fecho o arquivo
-f.close()
+data.close()
+
+error.close()
+
+#weights.close()
