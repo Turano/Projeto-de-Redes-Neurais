@@ -4,10 +4,11 @@ import os
 import pickle
 import random
 
-np.seterr(all = 'raise')
-
-def sigmoid(out):
-    return 1/(1+np.exp(-out))
+def LReLu(out):
+    if (out >= 0):
+        return out
+    else:
+        return out*0.2
 
 def perc(num, peso, wbias):
     return sum(multiplicar(num, peso), wbias)
@@ -23,26 +24,25 @@ def multiplicar(num, peso):
         num[x] *= peso[x]
     return num
 
-def feedforward(whl, wout, hl, hlnosig, output, entrada, wbhl, wbout):
+def feedforward(whl, wout, hl, output, entrada, wbhl, wbout):
 
     transpostahl = np.matrix.transpose(whl)
 
     transpostaout = np.matrix.transpose(wout)
 
     for x in range (30):
-        hl[x] = sigmoid(perc(entrada, transpostahl[x], wbhl[x]))
-        hlnosig[x] = sum(multiplicar(entrada, transpostahl[x]), wbhl[x])
+        hl[x] = LReLu(perc(entrada, transpostahl[x], wbhl[x]))
 
     for x in range (10):
         output[x] = (perc(hl, transpostaout[x], wbout[x]))
 
     output = softmax(output)
 
-    return (output, hlnosig)
+    return (output)
 
-def backpropagation(output, algarismo, wout, whl, entrada, hl, hlnosig, wbhl, wbout):
+def backpropagation(output, algarismo, wout, whl, entrada, hl, wbhl, wbout):
 
-    taxa = 0.000001
+    taxa = 0.00005
 
     costfunction = 0
 
@@ -50,15 +50,12 @@ def backpropagation(output, algarismo, wout, whl, entrada, hl, hlnosig, wbhl, wb
     awhl = whl
     aux1 = np.zeros(10)
     dercrosshl = np.zeros(30)
-    dercrosshlnosig = np.zeros(30)
     dercrosssoft = np.zeros(10)
     awbout = np.zeros(10)
     awbhl = np.zeros(30)
 
     for x in range (10):    
         costfunction += algarismo[x] * (-np.log(output[x])) + (1 - algarismo[x]) * (-np.log(1 - output[x]))
-
-    #print(costfunction)
 
     for x in range (10):
         dercrosssoft[x] = output[x] - algarismo[x]
@@ -67,7 +64,6 @@ def backpropagation(output, algarismo, wout, whl, entrada, hl, hlnosig, wbhl, wb
         for x in range(10):
             aux1[x] = dercrosssoft[x] * wout[y][x]
         dercrosshl[y] = sum(aux1)
-        dercrosshlnosig[y] = (1 / (1 + np.exp(-hlnosig[y]))) * (1 - (1 / (1 + np.exp(-hlnosig[y]))))
 
     for x in range(30):
         for y in range(10):
@@ -75,13 +71,19 @@ def backpropagation(output, algarismo, wout, whl, entrada, hl, hlnosig, wbhl, wb
 
     for x in range(256):
         for y in range(30):
-            awhl[x][y] = whl[x][y] - taxa * dercrosshl[y] * dercrosshlnosig[y] * entrada[x]
+            if(hl[y] >= 0):
+                awhl[x][y] = whl[x][y] - taxa * dercrosshl[y] * entrada[x]
+            else:
+                awhl[x][y] = whl[x][y] - taxa * dercrosshl[y] * entrada[x] * 0.2
 
     for x in range (10):
         awbout[x] = wbout[x] - taxa * dercrosssoft[x]
 
     for x in range (30):
-        awbhl[x] = wbhl[x] - taxa * dercrosshl[y] * dercrosshlnosig[y]
+        if(hl[x] >= 0):
+            awbhl[x] = wbhl[x] - taxa * dercrosshl[y]
+        else:
+            awbhl[x] = wbhl[x] - taxa * dercrosshl[y] * 0.2
 
     return (costfunction, awhl, awout, awbhl, awbout)
 
@@ -112,8 +114,6 @@ def main():
     hl = np.zeros(30)
     output = np.zeros(10)
 
-    hlnosig = np.zeros(30)
-
     erro = np.zeros(1593)
 
     start_time = time.time()
@@ -133,8 +133,8 @@ def main():
                     entrada[x] = float(data[x])
                 for x in range (10):
                     algarismo[x] = int(data[256+x])
-                (output, hlnosig) = feedforward(whl, wout, hl, hlnosig, output, entrada, wbhl, wbout)
-                (erro[z], whl, wout, wbhl, wbout) = backpropagation(output, algarismo, wout, whl, entrada, hl, hlnosig, wbhl, wbout)
+                (output) = feedforward(whl, wout, hl, output, entrada, wbhl, wbout)
+                (erro[z], whl, wout, wbhl, wbout) = backpropagation(output, algarismo, wout, whl, entrada, hl, wbhl, wbout)
 
         with open('erro', 'a+') as e:
             e.write('{}\n'.format(sum(erro)/1593))
