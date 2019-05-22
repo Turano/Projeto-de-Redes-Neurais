@@ -8,16 +8,13 @@ def LReLu(out):
     if (out >= 0):
         return out
     else:
-        return out*0.2
+        return out*0.01
 
 def perc(num, peso, wbias):
     return sum(multiplicar(num, peso), wbias)
 
-def softmax(array):
-    output = np.zeros(10)
-    for x in range (10):
-        output[x] = np.exp(array[x]) / sum(np.exp(array))
-    return output
+def softmax(x):
+    return np.exp(x - np.max(x)) / np.sum(np.exp(x - np.max(x)))
 
 def multiplicar(num, peso):
     for x in range(len(num)):
@@ -30,7 +27,7 @@ def feedforward(whl, wout, hl, output, entrada, wbhl, wbout):
 
     transpostaout = np.matrix.transpose(wout)
 
-    for x in range (30):
+    for x in range (60):
         hl[x] = LReLu(perc(entrada, transpostahl[x], wbhl[x]))
 
     for x in range (10):
@@ -40,52 +37,45 @@ def feedforward(whl, wout, hl, output, entrada, wbhl, wbout):
 
     return (output)
 
-def backpropagation(output, algarismo, wout, whl, entrada, hl, wbhl, wbout):
-
-    taxa = 0.00005
-
-    costfunction = 0
+def backpropagation(output, algarismo, wout, whl, entrada, hl, wbhl, wbout, taxa):
 
     awout = wout
     awhl = whl
     aux1 = np.zeros(10)
-    dercrosshl = np.zeros(30)
+    dercrosshl = np.zeros(60)
     dercrosssoft = np.zeros(10)
     awbout = np.zeros(10)
-    awbhl = np.zeros(30)
-
-    for x in range (10):    
-        costfunction += algarismo[x] * (-np.log(output[x])) + (1 - algarismo[x]) * (-np.log(1 - output[x]))
+    awbhl = np.zeros(60)
 
     for x in range (10):
         dercrosssoft[x] = output[x] - algarismo[x]
 
-    for y in range(30):
+    for y in range(60):
         for x in range(10):
             aux1[x] = dercrosssoft[x] * wout[y][x]
         dercrosshl[y] = sum(aux1)
 
-    for x in range(30):
+    for x in range(60):
         for y in range(10):
             awout[x][y] = wout[x][y] - taxa * dercrosssoft[y] * hl[x]
 
     for x in range(256):
-        for y in range(30):
+        for y in range(60):
             if(hl[y] >= 0):
                 awhl[x][y] = whl[x][y] - taxa * dercrosshl[y] * entrada[x]
             else:
-                awhl[x][y] = whl[x][y] - taxa * dercrosshl[y] * entrada[x] * 0.2
+                awhl[x][y] = whl[x][y] - taxa * dercrosshl[y] * entrada[x] * 0.01
 
     for x in range (10):
         awbout[x] = wbout[x] - taxa * dercrosssoft[x]
 
-    for x in range (30):
+    for x in range (60):
         if(hl[x] >= 0):
             awbhl[x] = wbhl[x] - taxa * dercrosshl[y]
         else:
-            awbhl[x] = wbhl[x] - taxa * dercrosshl[y] * 0.2
+            awbhl[x] = wbhl[x] - taxa * dercrosshl[y] * 0.01
 
-    return (costfunction, awhl, awout, awbhl, awbout)
+    return (awhl, awout, awbhl, awbout)
 
 def main():
 
@@ -100,56 +90,74 @@ def main():
                 whl, wout, wbhl, wbout = pickle.load(n)
         except:
             print("não ok")
-            whl = np.random.randn(256, 30) * np.sqrt(2 / 256)
-            wout = np.random.randn(30, 10) * np.sqrt(2 / 30)
-            wbhl = np.random.random(30) * np.sqrt(2 / 30)
-            wbout = np.random.random(10) * np.sqrt(2 / 10)
+            whl = np.random.randn(256, 60) * np.sqrt(2 / 256)
+            wout = np.random.randn(60, 10) * np.sqrt(2 / 60)
+            wbhl = np.random.randn(60) * np.sqrt(2 / 60)
+            wbout = np.random.randn(10) * np.sqrt(2 / 10)
     else:
         print("ok")
-        whl = np.random.randn(256, 30) * np.sqrt(2 / 256)
-        wout = np.random.randn(30, 10) * np.sqrt(2 / 30)
-        wbhl = np.random.random(30) * np.sqrt(2 / 30)
-        wbout = np.random.random(10) * np.sqrt(2 / 10)
+        whl = np.random.randn(256, 60) * np.sqrt(2 / 256)
+        wout = np.random.randn(60, 10) * np.sqrt(2 / 60)
+        wbhl = np.random.randn(60) * np.sqrt(2 / 60)
+        wbout = np.random.randn(10) * np.sqrt(2 / 10)
 
-    hl = np.zeros(30)
+    hl = np.zeros(60)
     output = np.zeros(10)
-
-    erro = np.zeros(1593)
 
     start_time = time.time()
     
     contagem = 0
 
-    anterior = 0
+    var = 1
+    
+    taxa01 = 0
 
     while(1):
-        lines = open('semeion.data').readlines()
-        random.shuffle(lines)
-        open('semeion.data', 'w').writelines(lines)
-        with open('semeion.data', 'r') as d:
-            for z in range(1593):
+        taxa = 0.0001
+
+        for y in range (4):
+            lines = open('Treinamento{}'.format(y+1)).readlines()
+            random.shuffle(lines)
+            open('Treinamento{}'.format(y+1), 'w').writelines(lines)
+            with open('Treinamento{}'.format(y+1), 'r') as d:
+                for z in range(286):
+                    data = d.readline().split(" ")
+                    for x in range (256):
+                        entrada[x] = float(data[x])
+                    for x in range (10):
+                        algarismo[x] = int(data[256+x])
+                    (output) = feedforward(whl, wout, hl, output, entrada, wbhl, wbout)
+                    (whl, wout, wbhl, wbout) = backpropagation(output, algarismo, wout, whl, entrada, hl, wbhl, wbout, taxa)
+
+            weights = [whl, wout, wbhl, wbout]
+
+            file_name = os.path.join(os.path.abspath('pesos'), 'peso{:05d}'.format(contagem))
+            with open(file_name, 'wb+') as p:
+                pickle.dump(weights, p)
+
+            contagem += 1
+        cost = np.zeros(32)
+
+        valor = -1
+
+        with open('Treinamento5'.format(y), 'r') as d:
+            for z in range (32):
                 data = d.readline().split(" ")
                 for x in range (256):
                     entrada[x] = float(data[x])
                 for x in range (10):
                     algarismo[x] = int(data[256+x])
                 (output) = feedforward(whl, wout, hl, output, entrada, wbhl, wbout)
-                (erro[z], whl, wout, wbhl, wbout) = backpropagation(output, algarismo, wout, whl, entrada, hl, wbhl, wbout)
-
-        with open('erro', 'a+') as e:
-            e.write('{}\n'.format(sum(erro)/1593))
-
-        weights = [whl, wout, wbhl, wbout]
-
-        file_name = os.path.join(os.path.abspath('pesos'), 'peso{:03d}'.format(contagem))
-        with open(file_name, 'wb+') as p:
-            pickle.dump(weights, p)
+                print(np.argmax(output))
+                for x in range (10):    
+                    cost[z] += algarismo[x] * (-np.log(output[x])) + (1 - algarismo[x]) * (-np.log(1 - output[x]))
+                
+                            
             
-        contagem += 1
-           
-        print('{:02d}:{:02d}:{:02d}\t{}\t{}'.format(int(time.time() - start_time) // 3600, (int(time.time() - start_time) % 3600 // 60), int(time.time() - start_time) % 60, sum(erro)/1593, anterior - sum(erro)/1593))
+        with open('erro', 'a+') as e:
+            e.write('{}\n'.format(sum(cost)/32))
 
-        anterior = sum(erro/1593)
+        
 
 if __name__ == '__main__':
     main()
